@@ -6,7 +6,7 @@ void i2c_init(I2C_TypeDef* i2c, EE14Lib_Pin scl, EE14Lib_Pin sda)
     gpio_config_otype(scl, OPEN_DRAIN);
     gpio_config_otype(sda, OPEN_DRAIN);
     // TODO: enable "fast mode plus" instead of ospeed
-    //SYSCFG->CFGR1 |= SYSCFG_CFGR1_I2C1_FMP;
+    // SYSCFG->CFGR1 |= SYSCFG_CFGR1_I2C1_FMP;
     //gpio_config_ospeed(scl, V_HI_SPD);
     //gpio_config_ospeed(sda, V_HI_SPD);
     gpio_config_pullup(scl, PULL_UP);
@@ -56,10 +56,7 @@ void i2c_init(I2C_TypeDef* i2c, EE14Lib_Pin scl, EE14Lib_Pin sda)
     i2c->CR1 |= I2C_CR1_PE; // Finally, enable the I2C peripheral
 }
 
-// This function writes len bytes from data to an I2C device.
-// It handles the start condition, sends data byte-by-byte, and checks for errors.
-// If the slave NACKs (negative acknowledgment), the function returns false.
-// Otherwise, it returns true to indicate a successful write.
+
 bool i2c_write(I2C_TypeDef* i2c, unsigned char device_address, unsigned char* data, unsigned char len)
 {
     // Wait until the I2C peripheral is not busy
@@ -102,9 +99,7 @@ bool i2c_write(I2C_TypeDef* i2c, unsigned char device_address, unsigned char* da
     return true; // Success
 }
 
-//This function reads len bytes from an I2C device at device_address and stores them in data.
-//It handles the start condition, waits for data, and checks for errors (NACK).
-//Returns true on success and false if the slave device does not acknowledge the request.
+
 bool i2c_read(I2C_TypeDef* i2c, unsigned char device_address, unsigned char* data, unsigned char len)
 {
     // Wait until the I2C peripheral is not busy

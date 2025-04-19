@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "*.s": "arm",
+        "ee14lib.h": "c",
+        "stm32l432xx.h": "c"
+    }
+}

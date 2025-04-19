@@ -1,151 +1,148 @@
 #include "stm32l432xx.h"
 #include "ee14lib.h"
+#include "lcd.h"
 
-void set_digit(volatile int digit);
-void initialize_button();
+const int SIZE_ARRAY = 1000;
+const int NUM_NOTES = 8;
+const EE14Lib_Pin b[] = { A0, D2, A1, D5, D9, D10, D11, D12 }; //array of pins
+//button 0 //A0 //PA0
+//button 1 //D2 //PA12
+//button 2 //A1 //PA1
+//button 4 //D9 //PA8
+//button 5 //D10 //PA11
+//button 6 //D11 //PB5
+//button 7 //D12 //PB4
 
-// Number of milliseconds that have passed since the program started.
-volatile int interrupt_num = 0;
-volatile int counter = 0;
+const EE14Lib_Pin sp = D1;
 
-// This function MUST be named SysTick_Handler for the CMSIS framework
-// code to link to it correctly.
-void  SysTick_Handler(void) {
-    interrupt_num += 1;
+// Mapping of Nucleo pin number to GPIO port
+static GPIO_TypeDef * g_GPIO_port[D13+1] = {
+    GPIOA,GPIOA,GPIOA,GPIOA,  // A0=PA0,A1=PA1,A2=PA3,A3=PA4
+    GPIOA,GPIOA,GPIOA,GPIOA,  // A4=PA5,A5=PA6,A6=PA7,A7=PA2
+    GPIOA,GPIOA,GPIOA,GPIOB,  // D0=PA10,D1=PA9,D2=PA12,D3=PB0
+    GPIOB,GPIOB,GPIOB,GPIOC,  // D4=PB7,D5=PB6,D6=PB1,D7=PC14
+    GPIOC,GPIOA,GPIOA,GPIOB,  // D8=PC15,D9=PA8,D10=PA11,D11=PB5
+    GPIOB,GPIOB               // D12=PB4,D13=PB3.
+};
+  
+// Mapping of Nucleo pin number to GPIO pin
+// Using this plust g_GPIO_port[] above, we can translate a Nucleo pin name into
+// the chip's actual GPIO port and pin number.
+static uint8_t g_GPIO_pin[D13+1] = {
+    0,1,3,4,    // A0=PA0,A1=PA1,A2=PA3,A3=PA4
+    5,6,7,2,    // A4=PA5,A5=PA6,A6=PA7,A7=PA2
+    10,9,12,0,  // D0=PA10,D1=PA9,D2=PA12,D3=PB0
+    7,6,1,14,   // D4=PB7,D5=PB6,D6=PB1,D7=PC14
+    15,8,11,5,  // D8=PC15,D9=PA8,D10=PA11,D11=PB5
+    4,3         // D12=PB4,D13=PB3.
+};
+
+int _write(int file, char *data, int len){
+    serial_write(USART2, data, len);
+    return len;
 }
 
-// Delays the program by the specificed number of milliseconds.
-void delay_ms(volatile int delay) {
-    int delay_time = interrupt_num + delay;
-    while(delay_time > interrupt_num);
+void test_button(int *notes, int button_index){
+    if(notes[button_index]){
+        gpio_write(D1, 1);
+    } else {
+        gpio_write(D1, 0);
+    }
 }
 
-void SysTick_initialize(void) {
+void test_all(int *notes) {
+    int count = 0;
+    for(int i = 0; i < NUM_NOTES; i++) {
+        if(notes[i]) { //if the button is pressed
+            count++;
+        }
+    }
+    if(count > 0) { //if any button was pressed
+        gpio_write(D1, 1); //turn on 
+    } else { //if no buttons pressed
+        gpio_write(D1, 0); //turn off
+    }
+}
+
+//check which buttons are pressed
+bool check_pressed(EE14Lib_Pin pin) {
+    GPIO_TypeDef* port = g_GPIO_port[pin];
+    uint8_t pin_offset = g_GPIO_pin[pin];
     
-    // This line disables the SysTick Timer by setting the SysTick control
-    // and status register to 0.
-    SysTick->CTRL = 0;
-
-    // This line makes it so that an interrupt is generated after a specific
-    // number of clock cycles. The counter starts counting down from 3999 to
-    // 0, then generates an interrupt, so an interrupt is generated every
-    // 4000 clock cycles.
-    SysTick->LOAD = 3999;
-
-    // This sets the priority of the interrupt to 15 (2^4 - 1), which is the
-    // largest supported value (aka lowest priority)
-    NVIC_SetPriority (SysTick_IRQn, (1<<__NVIC_PRIO_BITS) - 1);
-
-    // This line sets the value of the SysTick counter after each clock cycle.
-    // When the program starts, VAL is set to the reload value, and counts down
-    // from there.
-    SysTick->VAL = 0;
-
-    // Changes the bit associated with CLCKSOURCE in the control and status
-    // register to 1, which selects Processor clock (AHB).
-    SysTick->CTRL |= SysTick_CTRL_CLKSOURCE_Msk;
-
-    // Changes the bit associated with TICKINT in the control and status
-    // register to 1, which makes it so counting down to 0 asserts the
-    // SysTick exception request.
-    SysTick->CTRL |= SysTick_CTRL_TICKINT_Msk;
-
-    // This line enables the SysTick counter.
-    SysTick->CTRL |= SysTick_CTRL_ENABLE_Msk;
-
+    if (!(port->IDR & (0x1UL << pin_offset))) { //if pressed
+        return true;
+    }
+    return false;
 }
 
-// Truth table for the segments 
-bool digit_arr[10][7] = {{0, 0, 0, 0, 0, 0, 1}, // 0
-                         {1, 0, 0, 1, 1, 1, 1}, // 1
-                         {0, 0, 1, 0, 0, 1, 0}, // 2
-                         {0, 0, 0, 0, 1, 1, 0}, // 3
-                         {1, 0, 0, 1, 1, 0, 0}, // 4
-                         {0, 1, 0, 0, 1, 0, 0}, // 5
-                         {0, 1, 0, 0, 0, 0, 0}, // 6
-                         {0, 0, 0, 1, 1, 1, 1}, // 7
-                         {0, 0, 0, 0, 0, 0, 0}, // 8
-                         {0, 0, 0, 1, 1, 0, 0}}; // 9
+//play when button is pressed
+void play(int *notes, int size_array) {
+    EE14Lib_Pin pin;
+    for (int i = 0; i < NUM_NOTES; i++) {
+        if (notes[i] == 1) { //if pressed
+            pin = b[i]; //set pin 
+        }
+    }
+    GPIO_TypeDef* port = g_GPIO_port[pin]; 
+    uint8_t pin_offset = g_GPIO_pin[pin];
 
-// Sets the output pins for a specific digit.
-void set_digit(int digit) {
-    gpio_write(D10, digit_arr[digit][0]); // Segment A
-    gpio_write(A2, digit_arr[digit][1]); // Segment B
-    gpio_write(D2, digit_arr[digit][2]); // Segment C
-    gpio_write(D5, digit_arr[digit][3]); // Segment D
-    gpio_write(D3, digit_arr[digit][4]); // Segment E
-    gpio_write(D6, digit_arr[digit][5]); // Segment F
-    gpio_write(A1, digit_arr[digit][6]); // Segment G
-
-}
-
-// Initializes the button to a pull-up button and set it to input mode.
-void initialize_button() {
-    gpio_config_pullup(A6, 0b01);
-    gpio_config_mode(A6, 0b00);
-}
-
-void config_gpio_interrupt(void)
-{
-    RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN;
-    SYSCFG->EXTICR[1] &= ~(SYSCFG_EXTICR2_EXTI7); // Specifies which ports lines are we using to generate interrupts.
-    EXTI->FTSR1 |= (EXTI_FTSR1_FT7); // Specifies the conditions to generate an interrupt.
-    EXTI->IMR1 |= (EXTI_IMR1_IM7); // Allows the specific pin to be able to generate an interrupt.
-    NVIC_SetPriority(EXTI9_5_IRQn, 2);
-    NVIC_EnableIRQ(EXTI9_5_IRQn);
-}
-
-void EXTI9_5_IRQHandler() {
-    gpio_write(D1, 1);
-    if(EXTI->PR1 & EXTI_PR1_PIF7) {
-        counter++;
-    } 
-    EXTI->PR1 |= EXTI_PR1_PIF7;
-    delay_ms(1000);
-    gpio_write(D1, 0);
-}
-
-int main()
-{
-    // Take a look in gpio.c for the new GPIO functions which should make your
-    // life a little easier for configuring/reading/writing GPIO pins.
-
-    SysTick_initialize();
-    
-    // Sets the pins connected to the digit anodes to output mode.
-    // gpio_config_direction(D9, 0b01); // Ten's Place
-    // gpio_config_direction(D4, 0b01); // One's Place
-
-    // Sets the pins connected to the segments to output mode.
-    // gpio_config_direction(D2, 0b01);
-    // gpio_config_direction(D3, 0b01);
-    // gpio_config_direction(D5, 0b01);
-    // gpio_config_direction(D6, 0b01);
-    // gpio_config_direction(A1, 0b01);
-    // gpio_config_direction(A2, 0b01);
-    // gpio_config_direction(D10, 0b01);
-    config_gpio_interrupt();
-    initialize_button();
-    gpio_config_mode(D1, 0b01);
-    
-    
-    while(1) {
-        
-        // if(GPIOA->ODR & GPIO_ODR_OD9) {
-        //     gpio_write(D1, 0);
-        // } 
-
-        // set_digit(ones_place);
-        // gpio_write(D9, 0);
-        // gpio_write(D4, 1);
-        // delay_ms(5);
-
-        // set_digit(tens_place);
-        // gpio_write(D9, 1);
-        // gpio_write(D4, 0);
-        // delay_ms(5);
+    for (int i = 0; i < size_array; i++) {
+        if(!(port->IDR & 0x1UL << pin_offset)) { 
+            // send information to DAC
+        } else { //button released
+            i = size_array - 1;
+        }    
     }
 
-    // Good luck!
 }
 
+
+void setup() {
+    gpio_config_mode(b[0], INPUT); //button 0   //A0 //PA0
+    gpio_config_pullup(b[0], PULL_UP);
+
+    gpio_config_mode(b[1], INPUT); //button 1 //D2 //PA12
+    gpio_config_pullup(b[1], PULL_UP);
+
+    gpio_config_mode(b[2], INPUT); //button 2 //A1 //PA1
+    gpio_config_pullup(b[2], PULL_UP);
+
+    gpio_config_mode(b[3], INPUT); //button 3 //D5 //PB6
+    gpio_config_pullup(b[3], PULL_UP);
+
+    gpio_config_mode(b[4], INPUT); //button 4 //D9 //PA8
+    gpio_config_pullup(b[4], PULL_UP);
+
+    gpio_config_mode(b[5], INPUT); //button 5 //D10 //PA11
+    gpio_config_pullup(b[5], PULL_UP);
+
+    gpio_config_mode(b[6], INPUT); //button 6 //D11 //PB5
+    gpio_config_pullup(b[6], PULL_UP);
+
+    gpio_config_mode(b[7], INPUT); //button 7 //D12 //PB4
+    gpio_config_pullup(b[7], PULL_UP);
+
+    //speaker, analog output //A2??
+    gpio_config_mode(D1, OUTPUT);
+}
+
+int main() {
+    setup(); //configure button MODER's & PUPDR's
+    gpio_write(D1, 0); //1 = on , 0 = off
+    while(1) {        
+        int notes[NUM_NOTES];
+        for (int i = 0; i < NUM_NOTES; i++) { //initialize with all zeroes
+            notes[i] = 0;
+        }
+        for(int i = 0; i < NUM_NOTES; i++) { //assign pressed (1) or unpressed (0)
+            if(check_pressed(b[i])) {
+                notes[i] = 1;
+            } else {
+                notes[i] = 0;
+            }
+        }
+        // test_button(notes, 7);
+        // test_all(notes);
+        play(notes, SIZE_ARRAY);
+    }
+}

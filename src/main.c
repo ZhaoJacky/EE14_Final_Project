@@ -11,7 +11,7 @@ EE14 Final Project: keyboard
 
 const int SIZE_ARRAY = 1000;
 const int NUM_NOTES = 8;
-const EE14Lib_Pin b[] = { A0, D2, A1, D5, D9, D10, D11, D6 }; //array of pins
+const EE14Lib_Pin b[] = { D3, D4, D5, D6, D9, D10, D11, D12 }; //array of pins
 //button 0 //A0 //PA0 B
 //button 1 //D2 //PA12 A
 //button 2 //A1 //PA1 G 
@@ -153,61 +153,65 @@ void note_name(int i) {
 
 int main() {
 
-    int i, output = 0;
+    // -------------------------- DAC Code -----------------------------------
+    // int i, output = 0;
 
-    DAC_Channel2_Init();
-
-    while(1) {
-        
-        // Waits until the DAC is not busy
-        while((DAC->SR & DAC_SR_BWST2) != 0);
-
-        DAC->DHR12R2 = output;
-
-        DAC->SWTRIGR |= DAC_SWTRIGR_SWTRIG2;
-
-        for(i = 0; i <= 10; i++);
-
-        output = (output + 1) & 0xFFF;
-    }
-    // SysTick_initialize();
-    // setup();
-    // enable_lcd();
-   
-    // write_lcd('h', 1);
-    // write_lcd('e', 1);
-    // write_lcd('l', 1);
-    // write_lcd('l', 1);
-    // write_lcd('o', 1);
-
-    // write_lcd(' ', 1);
-
-    // write_lcd('w', 1);
-    // write_lcd('o', 1);
-    // write_lcd('r', 1);
-    // write_lcd('l', 1);
-    // write_lcd('d', 1);
-
-    // write_lcd('!', 1);
+    // DAC_Channel2_Init();
 
     // while(1) {
-    //     delay_ms(50);
-    //     int notes[NUM_NOTES];
-    //     for (int i = 0; i < NUM_NOTES; i++) { //initialize with all zeroes
-    //         notes[i] = 0;
-    //     }
-    //     for(int i = 0; i < NUM_NOTES; i++) { //assign pressed (1) or unpressed (0)
-    //         if(check_pressed(b[i])) {
-    //             notes[i] = 1;
-    //             note_name(i);
-    //             delay_ms(100);
-    //             write_lcd(0x01, 0);
-    //         } else {
-    //             notes[i] = 0;
-    //         }
-    //     }
-    //     // display_note(notes);
+        
+    //     // Waits until the DAC is not busy
+    //     while((DAC->SR & DAC_SR_BWST2) != 0);
+
+    //     DAC->DHR12R2 = output;
+
+    //     DAC->SWTRIGR |= DAC_SWTRIGR_SWTRIG2;
+
+    //     for(i = 0; i <= 10; i++);
+
+    //     output = (output + 1) & 0xFFF;
     // }
+
+    // -------------------------- DAC Code -----------------------------------
+
+    SysTick_initialize();
+    setup();
+    enable_lcd();
+   
+    write_lcd('h', 1);
+    write_lcd('e', 1);
+    write_lcd('l', 1);
+    write_lcd('l', 1);
+    write_lcd('o', 1);
+
+    write_lcd(' ', 1);
+
+    write_lcd('w', 1);
+    write_lcd('o', 1);
+    write_lcd('r', 1);
+    write_lcd('l', 1);
+    write_lcd('d', 1);
+
+    write_lcd('!', 1);
+
+    while(1) {
+        delay_ms(50);
+        int notes[NUM_NOTES];
+        for (int i = 0; i < NUM_NOTES; i++) { //initialize with all zeroes
+            notes[i] = 0;
+        }
+        for(int i = 0; i < NUM_NOTES; i++) { //assign pressed (1) or unpressed (0)
+            if(check_pressed(b[i])) {
+                notes[i] = 1;
+                note_name(i);
+                delay_ms(100);
+                write_lcd(0x01, 0);
+            } else {
+                notes[i] = 0;
+            }
+        }
+        // display_note(notes);
+    }
      //configure button MODER's & PUPDR's
     // gpio_write(D1, 0); //1 = on , 0 = off
     // while(1) {        

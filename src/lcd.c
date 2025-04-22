@@ -5,9 +5,8 @@
 #include "lcd.h"
 
 void SysTick_initialize(void) {
-    // TODO: figure out what each line of code in this function does
     SysTick->CTRL = 0; //disables systick counter
-    SysTick->LOAD = 3999; // TODO: fill this in with an appropriate value
+    SysTick->LOAD = 3999; 
     //LOAD indicates how often an interrupt is generated (4Mhz/LOAD = frequency
     //of interrupt generation)
 

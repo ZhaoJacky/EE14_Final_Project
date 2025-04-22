@@ -154,65 +154,67 @@ void note_name(int i) {
 int main() {
 
     // -------------------------- DAC Code -----------------------------------
-    // int i, output = 0;
+    int i, output = 0;
 
-    // DAC_Channel2_Init();
+    DAC_Channel2_Init(); //initialize pin A4 --> PA5
 
-    // while(1) {
+    while(1) {
         
-    //     // Waits until the DAC is not busy
-    //     while((DAC->SR & DAC_SR_BWST2) != 0);
+        // Waits until the DAC is not busy
+        while((DAC->SR & DAC_SR_BWST2) != 0);
 
-    //     DAC->DHR12R2 = output;
+        DAC->DHR12R2 = output; //Set DAC output to 12-bit right-aligned data
 
-    //     DAC->SWTRIGR |= DAC_SWTRIGR_SWTRIG2;
+        DAC->SWTRIGR |= DAC_SWTRIGR_SWTRIG2; //Hardware clears SWTRIG2 once DHR12R2 has been copied to DOR 
 
-    //     for(i = 0; i <= 10; i++);
+        for(i = 0; i <= 100; i++); //software delay
 
-    //     output = (output + 1) & 0xFFF;
-    // }
+        output = (output + 1) & 0xFFF; //increment output voltage
+    }
 
     // -------------------------- DAC Code -----------------------------------
 
-    SysTick_initialize();
-    setup();
-    enable_lcd();
+    // SysTick_initialize();
+    // setup();
+    // enable_lcd();
    
-    write_lcd('h', 1);
-    write_lcd('e', 1);
-    write_lcd('l', 1);
-    write_lcd('l', 1);
-    write_lcd('o', 1);
+    // write_lcd('h', 1);
+    // write_lcd('e', 1);
+    // write_lcd('l', 1);
+    // write_lcd('l', 1);
+    // write_lcd('o', 1);
 
-    write_lcd(' ', 1);
+    // write_lcd(' ', 1);
 
-    write_lcd('w', 1);
-    write_lcd('o', 1);
-    write_lcd('r', 1);
-    write_lcd('l', 1);
-    write_lcd('d', 1);
+    // write_lcd('w', 1);
+    // write_lcd('o', 1);
+    // write_lcd('r', 1);
+    // write_lcd('l', 1);
+    // write_lcd('d', 1);
 
-    write_lcd('!', 1);
+    // write_lcd('!', 1);
 
-    while(1) {
-        delay_ms(50);
-        int notes[NUM_NOTES];
-        for (int i = 0; i < NUM_NOTES; i++) { //initialize with all zeroes
-            notes[i] = 0;
-        }
-        for(int i = 0; i < NUM_NOTES; i++) { //assign pressed (1) or unpressed (0)
-            if(check_pressed(b[i])) {
-                notes[i] = 1;
-                note_name(i);
-                delay_ms(100);
-                write_lcd(0x01, 0);
-            } else {
-                notes[i] = 0;
-            }
-        }
+    // while(1) {
+        // delay_ms(50);
+        // int notes[NUM_NOTES];
+        // for (int i = 0; i < NUM_NOTES; i++) { //initialize with all zeroes
+        //     notes[i] = 0;
+        // }
+        // for(int i = 0; i < NUM_NOTES; i++) { //assign pressed (1) or unpressed (0)
+        //     if(check_pressed(b[i])) {
+        //         notes[i] = 1;
+        //         note_name(i);
+        //         delay_ms(100);
+        //         write_lcd(0x01, 0);
+        //     } else {
+        //         notes[i] = 0;
+        //     }
+        // }
         // display_note(notes);
-    }
-     //configure button MODER's & PUPDR's
+    // }
+    
+    
+    //configure button MODER's & PUPDR's
     // gpio_write(D1, 0); //1 = on , 0 = off
     // while(1) {        
     //     int notes[NUM_NOTES];

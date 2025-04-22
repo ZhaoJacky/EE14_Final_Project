@@ -8,19 +8,13 @@ EE14 Final Project: keyboard
 #include "dac.h"
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 
 const int SIZE_ARRAY = 1000;
 const int NUM_NOTES = 8;
 const EE14Lib_Pin b[] = { D3, D4, D5, D6, D9, D10, D11, D12 }; //array of pins
-//button 0 //A0 //PA0 B
-//button 1 //D2 //PA12 A
-//button 2 //A1 //PA1 G 
-//button 4 //D9 //PA8 F
-//button 5 //D10 //PA11 E
-//button 6 //D11 //PB5 D
-//button 7 //D6 //PB4 C
 
-const EE14Lib_Pin sp = D1;
+const EE14Lib_Pin sp = A4;
 
 // Mapping of Nucleo pin number to GPIO port
 static GPIO_TypeDef * g_GPIO_port[D13+1] = {
@@ -151,48 +145,62 @@ void note_name(int i) {
     else if (i == 7) write_lcd('C', 1);
 }
 
+uint32_t lookup_sine(int x, float *sine_table) {
+    //x is output in degrees
+    x = mod(x, 360); //x might be Larger than 360 
+    if (x < 90) return sine_table[x]; 
+    if (x < 180) return sine_table[180-x]; 
+    if (x < 270) return 4096 - sine_table[x-180]; 
+    return 4096 - sine_table[360-x]; 
+}
+
+void print_start(void) {
+    write_lcd('h', 1);
+    write_lcd('e', 1);
+    write_lcd('l', 1);
+    write_lcd('l', 1);
+    write_lcd('o', 1);
+
+    write_lcd(' ', 1);
+
+    write_lcd('w', 1);
+    write_lcd('o', 1);
+    write_lcd('r', 1);
+    write_lcd('l', 1);
+    write_lcd('d', 1);
+
+    write_lcd('!', 1);
+}
+
 int main() {
 
     // -------------------------- DAC Code -----------------------------------
-    int i, output = 0;
+    // int i, output = 0;
 
-    DAC_Channel2_Init(); //initialize pin A4 --> PA5
+    // DAC_Channel2_Init(); //initialize pin A4 --> PA5
 
-    while(1) {
+    // while(1) {
         
-        // Waits until the DAC is not busy
-        while((DAC->SR & DAC_SR_BWST2) != 0);
+    //     // Waits until the DAC is not busy
+    //     while((DAC->SR & DAC_SR_BWST2) != 0);
 
-        DAC->DHR12R2 = output; //Set DAC output to 12-bit right-aligned data
+    //     DAC->DHR12R2 = output; //Set DAC output (12-bit right-aligned data) //note frequency
 
-        DAC->SWTRIGR |= DAC_SWTRIGR_SWTRIG2; //Hardware clears SWTRIG2 once DHR12R2 has been copied to DOR 
+    //     DAC->SWTRIGR |= DAC_SWTRIGR_SWTRIG2; //Hardware clears SWTRIG2 once DHR12R2 has been copied to DOR 
 
-        for(i = 0; i <= 100; i++); //software delay
+    //     for(i = 0; i <= 100; i++); //software delay
 
-        output = (output + 1) & 0xFFF; //increment output voltage
-    }
+    //     output = (output + 1) & 0xFFF; //increment output voltage --> generate sawtooth
+    // }
 
     // -------------------------- DAC Code -----------------------------------
-
-    // SysTick_initialize();
-    // setup();
-    // enable_lcd();
-   
-    // write_lcd('h', 1);
-    // write_lcd('e', 1);
-    // write_lcd('l', 1);
-    // write_lcd('l', 1);
-    // write_lcd('o', 1);
-
-    // write_lcd(' ', 1);
-
-    // write_lcd('w', 1);
-    // write_lcd('o', 1);
-    // write_lcd('r', 1);
-    // write_lcd('l', 1);
-    // write_lcd('d', 1);
-
-    // write_lcd('!', 1);
+    
+    volatile int i, output;
+    SysTick_initialize();
+    DAC_Channel2_Init(); //initialize pin A4 --> PA5
+    setup(); //config button pins
+    enable_lcd(); //
+    print_start();
 
     // while(1) {
         // delay_ms(50);

@@ -6,6 +6,10 @@
 
 // Before using the commands contained in this file, please make sure
 // to initialize I2C on the Nucleo Board.
-
-void write_lcd(uint8_t data);
+void SysTick_initialize(void);
+void delay_ms(int s);
+void write_lcd(uint8_t byte, int data);
+void send_lcd_nibble(uint8_t nibble, int data);
+uint8_t construct_lcd_nibble(uint8_t nibble, int enable, int data);
 void enable_lcd();
+void send_lcd_nibble(uint8_t nibble, int data);

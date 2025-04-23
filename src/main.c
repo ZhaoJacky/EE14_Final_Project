@@ -8,6 +8,7 @@ EE14 Final Project: keyboard
 #include "dac.h"
 #include <stdio.h>
 #include <string.h>
+#define _USE_MATH_DEFINES
 #include <math.h>
 
 const int SIZE_ARRAY = 1000;
@@ -172,54 +173,106 @@ void print_start(void) {
     write_lcd('!', 1);
 }
 
+// void set_note_freq(float freq) {
+//     // Phase increment formula: freq * LUT_SIZE / SAMPLE_RATE
+//     phase_inc = (uint32_t)((freq * SIZE_ARRAY * (1 << 16)) / SAMPLE_RATE);
+// }
+
 int main() {
+    // host_serial_init();
+    // int i; 
+    // signed int sine_table[91]; 
+    // float sf; 
+    // //for 12-bit ADC, [e, 2047(0xFFF)]; 
+    // for (i = 0; i <= 90; i++){ 
+    //     sf = sin(M_PI * i /180); 
+    //     sine_table[i] = (1 + sf) * 2048; 
+    //     if(sine_table[i] == 0x1000) 
+    //         sine_table[i] = 0xFFF; //sin(90) is out of range 
+    //     } 
+    // printf("sine_table"); 
+    // for (i = 0; i < 90; i += 5){ 
+    //     // printf("\tDCD\t"); 
+    //     printf("0x%03x,0x%03x,0x%03x,0x%03x,0x%03x\n", sine_table[i], 
+    //     sine_table[i+1], sine_table[i+2], sine_table[i+3], sine_table[i+4]); 
+    // } 
+    // printf("\tDCD\t0x%03x\n", sine_table[90]); 
+    // while(1) {
 
+    // }
     // -------------------------- DAC Code -----------------------------------
-    // int i, output = 0;
-
+    // volatile int output = 0;
+    // float output;
+    // volatile int i = 0;
     // DAC_Channel2_Init(); //initialize pin A4 --> PA5
-
+    // SysTick_initialize();
     // while(1) {
         
     //     // Waits until the DAC is not busy
     //     while((DAC->SR & DAC_SR_BWST2) != 0);
 
+    //     float sf = sin(M_PI * i / 180); 
+    //     output = (1 + sf) * 2048; // Cannot go above 2048
+    //     if(output == 0x1000) {
+    //         output = 0xFFF; //sin(90) is out of range 
+    //     }
+    //     i++;
     //     DAC->DHR12R2 = output; //Set DAC output (12-bit right-aligned data) //note frequency
 
     //     DAC->SWTRIGR |= DAC_SWTRIGR_SWTRIG2; //Hardware clears SWTRIG2 once DHR12R2 has been copied to DOR 
 
-    //     for(i = 0; i <= 100; i++); //software delay
+    //     for(volatile int j = 0; j<= 2; j++); //software delay
+    //     // delay_ms(10);
 
-    //     output = (output + 1) & 0xFFF; //increment output voltage --> generate sawtooth
+    //     // output = (output + 1) & 0xFFF; //increment output voltage --> generate sawtooth
     // }
 
     // -------------------------- DAC Code -----------------------------------
     
-    volatile int i, output;
+    // volatile int i, output;
+    float output;
     SysTick_initialize();
     DAC_Channel2_Init(); //initialize pin A4 --> PA5
     setup(); //config button pins
-    enable_lcd(); //
-    print_start();
+    enable_lcd(); //config lcd
+    print_start(); //print starting message
 
-    // while(1) {
-        // delay_ms(50);
-        // int notes[NUM_NOTES];
-        // for (int i = 0; i < NUM_NOTES; i++) { //initialize with all zeroes
-        //     notes[i] = 0;
-        // }
-        // for(int i = 0; i < NUM_NOTES; i++) { //assign pressed (1) or unpressed (0)
-        //     if(check_pressed(b[i])) {
-        //         notes[i] = 1;
-        //         note_name(i);
-        //         delay_ms(100);
-        //         write_lcd(0x01, 0);
-        //     } else {
-        //         notes[i] = 0;
-        //     }
-        // }
-        // display_note(notes);
-    // }
+    while(1) {
+        delay_ms(50);
+        int notes[NUM_NOTES];
+        for (int i = 0; i < NUM_NOTES; i++) { //initialize with all zeroes
+            notes[i] = 0;
+        }
+        for(int i = 0; i < NUM_NOTES; i++) { //assign pressed (1) or unpressed (0)
+            if(check_pressed(b[i])) {
+                notes[i] = 1;
+                note_name(i);
+                delay_ms(100);
+                write_lcd(0x01, 0);
+
+                //SPEAKER
+                for (int volatile i = 0; i < 1000; i++) {
+                    while((DAC->SR & DAC_SR_BWST2) != 0);
+
+                    float sf = sin(M_PI * i / 180); 
+                    output = (1 + sf) * 2048; // Cannot go above 2048
+                    if(output == 0x1000) {
+                        output = 0xFFF; //sin(90) is out of range 
+                    }
+                    // i++;
+                    DAC->DHR12R2 = output; //Set DAC output (12-bit right-aligned data) //note frequency
+            
+                    DAC->SWTRIGR |= DAC_SWTRIGR_SWTRIG2; //Hardware clears SWTRIG2 once DHR12R2 has been copied to DOR 
+            
+                    for(volatile int j = 0; j<= 2; j++);
+                }
+
+            } else {
+                notes[i] = 0;
+            }
+        }
+        display_note(notes);
+    }
     
     
     //configure button MODER's & PUPDR's

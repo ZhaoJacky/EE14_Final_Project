@@ -25,7 +25,7 @@ void DAC_Channel2_Init(void) {
     // Enable the clock of GPIO port A.
     RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN;
 
-    // Set PA5's I/O mode is analog.
+    // Set PA5's I/O mode as analog.
     GPIOA->MODER |= GPIO_MODER_MODE5; // Set the mode as analog (11)
 }
 

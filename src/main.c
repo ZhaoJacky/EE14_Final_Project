@@ -10,8 +10,8 @@ EE14 Final Project: keyboard
 #include <string.h>
 #define _USE_MATH_DEFINES
 #include <math.h>
+#include "sine_table.h"
 
-const int SIZE_ARRAY = 1000;
 const int NUM_NOTES = 8;
 const EE14Lib_Pin b[] = { D3, D4, D5, D6, D9, D10, D11, D12 }; //array of pins
 
@@ -39,31 +39,10 @@ static uint8_t g_GPIO_pin[D13+1] = {
     4,3         // D12=PB4,D13=PB3.
 };
 
+//for the print functions
 int _write(int file, char *data, int len){
     serial_write(USART2, data, len);
     return len;
-}
-
-void test_button(int *notes, int button_index){
-    if(notes[button_index]){
-        gpio_write(D1, 1);
-    } else {
-        gpio_write(D1, 0);
-    }
-}
-
-void test_all(int *notes) {
-    int count = 0;
-    for(int i = 0; i < NUM_NOTES; i++) {
-        if(notes[i]) { //if the button is pressed
-            count++;
-        }
-    }
-    if(count > 0) { //if any button was pressed
-        gpio_write(D1, 1); //turn on 
-    } else { //if no buttons pressed
-        gpio_write(D1, 0); //turn off
-    }
 }
 
 //check which buttons are pressed
@@ -77,7 +56,7 @@ bool check_pressed(EE14Lib_Pin pin) {
     return false;
 }
 
-// //play when button is pressed
+//play when button is pressed
 void play(int *notes, int size_array) {
     EE14Lib_Pin pin;
     for (int i = 0; i < NUM_NOTES; i++) {
@@ -98,7 +77,7 @@ void play(int *notes, int size_array) {
     }
 }
 
-
+//config pins used for the buttons
 void setup() {
     gpio_config_mode(b[0], INPUT); //button 0   //A0 //PA0
     gpio_config_pullup(b[0], PULL_UP);
@@ -123,176 +102,110 @@ void setup() {
 
     gpio_config_mode(b[7], INPUT); //button 7 //D12 //PB4
     gpio_config_pullup(b[7], PULL_UP);
-
-    //speaker, analog output //A2??
-    gpio_config_mode(D1, OUTPUT);
 }
 
-void display_note(int *notes) {
-    for (int i = 0; i < NUM_NOTES; i++) {
-        if (notes[i] == 1) { //if pressed
-            note_name(i);
-        }
-    }
-}
+//display the notes on LCD
+// void display_note(int *notes) {
+//     for (int i = 0; i < NUM_NOTES; i++) {
+//         if (notes[i] == 1) { //if pressed
+//             note_name(i);
+//         }
+//     }
+// }
 
-void note_name(int i) {
-    if      (i == 1) write_lcd('B', 1);
-    else if (i == 2) write_lcd('A', 1);
-    else if (i == 3) write_lcd('G', 1);
-    else if (i == 4) write_lcd('F', 1);
-    else if (i == 5) write_lcd('E', 1);
-    else if (i == 6) write_lcd('D', 1);
-    else if (i == 7) write_lcd('C', 1);
-}
+//define the name of the notes
+// void note_name(int i) {
+//     if      (i == 1) write_lcd('B', 1);
+//     else if (i == 2) write_lcd('A', 1);
+//     else if (i == 3) write_lcd('G', 1);
+//     else if (i == 4) write_lcd('F', 1);
+//     else if (i == 5) write_lcd('E', 1);
+//     else if (i == 6) write_lcd('D', 1);
+//     else if (i == 7) write_lcd('C', 1);
+// }
 
-uint32_t lookup_sine(int x, float *sine_table) {
-    //x is output in degrees
-    x = mod(x, 360); //x might be Larger than 360 
-    if (x < 90) return sine_table[x]; 
-    if (x < 180) return sine_table[180-x]; 
-    if (x < 270) return 4096 - sine_table[x-180]; 
-    return 4096 - sine_table[360-x]; 
-}
+// uint16_t lookup_sine(int x, int *sine_table) {
+//     //x is output in degrees
+//     x = fmod(x, 360); //x might be Larger than 360 
+//     if (x < 90) return sine_table[x]; 
+//     if (x < 180) return sine_table[180-x]; 
+//     if (x < 270) return 4096 - sine_table[x-180]; 
+//     return 4096 - sine_table[360-x]; 
+// }
 
-void print_start(void) {
-    write_lcd('h', 1);
-    write_lcd('e', 1);
-    write_lcd('l', 1);
-    write_lcd('l', 1);
-    write_lcd('o', 1);
+// print starting message to the LCD
+// void print_start(void) {
+//     write_lcd('h', 1);
+//     write_lcd('e', 1);
+//     write_lcd('l', 1);
+//     write_lcd('l', 1);
+//     write_lcd('o', 1);
 
-    write_lcd(' ', 1);
+//     write_lcd(' ', 1);
 
-    write_lcd('w', 1);
-    write_lcd('o', 1);
-    write_lcd('r', 1);
-    write_lcd('l', 1);
-    write_lcd('d', 1);
+//     write_lcd('w', 1);
+//     write_lcd('o', 1);
+//     write_lcd('r', 1);
+//     write_lcd('l', 1);
+//     write_lcd('d', 1);
 
-    write_lcd('!', 1);
-}
+//     write_lcd('!', 1);
+// }
 
-// void set_note_freq(float freq) {
-//     // Phase increment formula: freq * LUT_SIZE / SAMPLE_RATE
-//     phase_inc = (uint32_t)((freq * SIZE_ARRAY * (1 << 16)) / SAMPLE_RATE);
+// void TIM7_IRQHandler(void) {
+//     uint16_t output;
+
+//     if (TIM7->SR & TIM_SR_UIF) {           // Check update interrupt flag
+//         TIM7->SR &= ~TIM_SR_UIF;           // Clear interrupt flag
+
+//         output = sine[i];                  // Get next sample from sine table
+
+//         DAC->DHR12R2 = output;             // Load output to DAC channel 2
+//         DAC->SWTRIGR |= DAC_SWTRIGR_SWTRIG2;  // Trigger DAC conversion
+
+//         i++;                               // Advance to next sample
+//         if (i >= 360) i = 0;               // Wrap around when end is reached
+//     }
 // }
 
 int main() {
-    // host_serial_init();
-    // int i; 
-    // signed int sine_table[91]; 
-    // float sf; 
-    // //for 12-bit ADC, [e, 2047(0xFFF)]; 
-    // for (i = 0; i <= 90; i++){ 
-    //     sf = sin(M_PI * i /180); 
-    //     sine_table[i] = (1 + sf) * 2048; 
-    //     if(sine_table[i] == 0x1000) 
-    //         sine_table[i] = 0xFFF; //sin(90) is out of range 
-    //     } 
-    // printf("sine_table"); 
-    // for (i = 0; i < 90; i += 5){ 
-    //     // printf("\tDCD\t"); 
-    //     printf("0x%03x,0x%03x,0x%03x,0x%03x,0x%03x\n", sine_table[i], 
-    //     sine_table[i+1], sine_table[i+2], sine_table[i+3], sine_table[i+4]); 
-    // } 
-    // printf("\tDCD\t0x%03x\n", sine_table[90]); 
-    // while(1) {
-
-    // }
-    // -------------------------- DAC Code -----------------------------------
-    // volatile int output = 0;
-    // float output;
-    // volatile int i = 0;
-    // DAC_Channel2_Init(); //initialize pin A4 --> PA5
-    // SysTick_initialize();
-    // while(1) {
-        
-    //     // Waits until the DAC is not busy
-    //     while((DAC->SR & DAC_SR_BWST2) != 0);
-
-    //     float sf = sin(M_PI * i / 180); 
-    //     output = (1 + sf) * 2048; // Cannot go above 2048
-    //     if(output == 0x1000) {
-    //         output = 0xFFF; //sin(90) is out of range 
-    //     }
-    //     i++;
-    //     DAC->DHR12R2 = output; //Set DAC output (12-bit right-aligned data) //note frequency
-
-    //     DAC->SWTRIGR |= DAC_SWTRIGR_SWTRIG2; //Hardware clears SWTRIG2 once DHR12R2 has been copied to DOR 
-
-    //     for(volatile int j = 0; j<= 2; j++); //software delay
-    //     // delay_ms(10);
-
-    //     // output = (output + 1) & 0xFFF; //increment output voltage --> generate sawtooth
-    // }
-
-    // -------------------------- DAC Code -----------------------------------
-    
-    // volatile int i, output;
-    float output;
+    host_serial_init();
     SysTick_initialize();
     DAC_Channel2_Init(); //initialize pin A4 --> PA5
     setup(); //config button pins
     enable_lcd(); //config lcd
-    print_start(); //print starting message
-
+    // print_start(); //print starting message
+    gpio_config_mode(A2, OUTPUT);
+    // TIM7_Init(88200);
+    uint16_t output;
     while(1) {
-        delay_ms(50);
-        int notes[NUM_NOTES];
-        for (int i = 0; i < NUM_NOTES; i++) { //initialize with all zeroes
-            notes[i] = 0;
-        }
-        for(int i = 0; i < NUM_NOTES; i++) { //assign pressed (1) or unpressed (0)
-            if(check_pressed(b[i])) {
-                notes[i] = 1;
-                note_name(i);
-                delay_ms(100);
-                write_lcd(0x01, 0);
-
-                //SPEAKER
-                for (int volatile i = 0; i < 1000; i++) {
-                    while((DAC->SR & DAC_SR_BWST2) != 0);
-
-                    float sf = sin(M_PI * i / 180); 
-                    output = (1 + sf) * 2048; // Cannot go above 2048
-                    if(output == 0x1000) {
-                        output = 0xFFF; //sin(90) is out of range 
-                    }
-                    // i++;
-                    DAC->DHR12R2 = output; //Set DAC output (12-bit right-aligned data) //note frequency
-            
-                    DAC->SWTRIGR |= DAC_SWTRIGR_SWTRIG2; //Hardware clears SWTRIG2 once DHR12R2 has been copied to DOR 
-            
-                    for(volatile int j = 0; j<= 2; j++);
-                }
-
+        for (int i = 0; i < 360; i++) {
+            while((DAC->SR & DAC_SR_BWST2) != 0);
+            if (i <= 179) {
+                output = sine[i];
             } else {
-                notes[i] = 0;
+                i = 0;
             }
+            DAC->DHR12R2 = output; //Set DAC output (12-bit right-aligned data) //note frequency
+    
+            DAC->SWTRIGR |= DAC_SWTRIGR_SWTRIG2; //Hardware clears SWTRIG2 once DHR12R2 has been copied to DOR 
+    
+            // for(volatile int j = 0; j<= 1; j++);
         }
-        display_note(notes);
     }
     
-    
-    //configure button MODER's & PUPDR's
-    // gpio_write(D1, 0); //1 = on , 0 = off
-    // while(1) {        
-    //     int notes[NUM_NOTES];
-    //     for (int i = 0; i < NUM_NOTES; i++) { //initialize with all zeroes
-    //         notes[i] = 0;
-    //     }
-    //     for(int i = 0; i < NUM_NOTES; i++) { //assign pressed (1) or unpressed (0)
-    //         if(check_pressed(b[i])) {
-    //             notes[i] = 1;
-    //         } else {
-    //             notes[i] = 0;
-    //         }
-    //     }
-    //     // test_button(notes, 7);
-    //     // test_all(notes);
-    //     play(notes, SIZE_ARRAY);
-    // }
+//     int i; 
+//     signed int sine_table[361]; 
+//     float sf; 
+//     for (i = 0; i < 360; i++){ 
+//         sf = sin(M_PI * i / 180); 
+//         sine_table[i] = (1 + sf) * 2048; 
+//         if(sine_table[i] == 0x1000) 
+//             sine_table[i] = 0xFFF;
+//         } 
+//     int step = 2;
+//     for (i = 0; i < 360; i += 5){ 
+//         printf("0x%03x,0x%03x,0x%03x,0x%03x,0x%03x,\n", sine_table[i], 
+//         sine_table[i+1*step], sine_table[i+2*step], sine_table[i+3*step], sine_table[i+4*step]); 
+//     } 
 }
-
-

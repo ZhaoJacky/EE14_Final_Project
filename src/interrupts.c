@@ -97,7 +97,7 @@
 //     EXTI->IMR1 |= EXTI_IMR1_IM0;
 
 //     NVIC_SetPriority(EXTI0_IRQn, 2);  // Set the priority of EXTI line 0 interrupt (priority 2)
-//     NVIC_EnableIRQ(EXTI0_IRQn); // Enable the EXTI0 interrupt in the NVIC
+    // NVIC_EnableIRQ(EXTI0_IRQn); // Enable the EXTI0 interrupt in the NVIC
 // }
 
 // void button2_config(void){ //D2  //PA12
@@ -194,7 +194,7 @@
 //     EXTI->IMR1 |= EXTI_IMR1_IM4;
 
 //     NVIC_SetPriority(EXTI4_IRQn, 2);  // Set the priority of EXTI line 0 interrupt (priority 2)
-//     NVIC_EnableIRQ(EXTI4_IRQn); // Enable the EXTI0 interrupt in the NVIC
+    // NVIC_EnableIRQ(EXTI4_IRQn); // Enable the EXTI0 interrupt in the NVIC
 // }
 
 // void setup() {
@@ -236,3 +236,4 @@
 
 //     //STEP 3: DAC
 // }
+

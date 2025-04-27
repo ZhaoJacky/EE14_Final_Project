@@ -47,10 +47,12 @@ EE14Lib_Err gpio_config_ospeed(EE14Lib_Pin pin, unsigned int ospeed);
 EE14Lib_Err gpio_config_alternate_function(EE14Lib_Pin pin, unsigned int function);
 void gpio_write(EE14Lib_Pin pin, bool value);
 bool gpio_read(EE14Lib_Pin pin);
+void note_name(EE14Lib_Pin pin);
 
 EE14Lib_Err timer_config(TIM_TypeDef* const timer, const unsigned int freq_hz);
 EE14Lib_Err timer_config_channel_pwm(TIM_TypeDef* const timer, const EE14Lib_Pin pin, const unsigned int duty);
-void TIM7_Init(unsigned int desired_sample_rate);
+void TIM7_Init(unsigned int freq_hz);
+unsigned int freq_select(EE14Lib_Pin note);
 
 void adc_init(void);
 EE14Lib_Err adc_config_single(const EE14Lib_Pin pin);

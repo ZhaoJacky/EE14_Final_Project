@@ -48,6 +48,7 @@ EE14Lib_Err gpio_config_alternate_function(EE14Lib_Pin pin, unsigned int functio
 void gpio_write(EE14Lib_Pin pin, bool value);
 bool gpio_read(EE14Lib_Pin pin);
 void note_name(EE14Lib_Pin pin);
+void modify_mode(EE14Lib_Pin mode_button);
 
 EE14Lib_Err timer_config(TIM_TypeDef* const timer, const unsigned int freq_hz);
 EE14Lib_Err timer_config_channel_pwm(TIM_TypeDef* const timer, const EE14Lib_Pin pin, const unsigned int duty);

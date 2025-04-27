@@ -12,8 +12,11 @@ EE14 Final Project: keyboard
 #include <math.h>
 #include "sine_table.h"
 
-const int NUM_NOTES = 8;
-const EE14Lib_Pin b[] = { D3, D2, D5, D6, D9, D10, D11, D12 }; //array of pins
+volatile int i = 0;
+bool mode = 0; // 0 = High Notes 1 = Low Notes
+int fade_num = 4096;
+const int NUM_NOTES = 9;
+const EE14Lib_Pin b[] = { D3, D2, D5, D6, D9, D10, D11, D12, A0}; //array of pins
                             // B   A   G   F   E    D    C
 const EE14Lib_Pin sp = A4;
 
@@ -45,6 +48,27 @@ int _write(int file, char *data, int len){
     return len;
 }
 
+//button mode
+void EXTI0_IRQHandler (void) {
+    if (EXTI->PR1 & EXTI_PR1_PIF0) { //A0  //PA0
+        mode = !mode; 
+        EXTI->PR1 = EXTI_PR1_PIF0;   //   clear bits(by writing a 1)
+    }
+}
+
+void button1_config(void) { //A0  //PA0
+    RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN;
+
+    SYSCFG->EXTICR[0] &= ~SYSCFG_EXTICR1_EXTI0; // Clear any existing mapping for EXTI0
+
+    EXTI->FTSR1 |= EXTI_FTSR1_FT0;
+
+    EXTI->IMR1 |= EXTI_IMR1_IM0;
+
+    NVIC_SetPriority(EXTI0_IRQn, 2);  // Set the priority of EXTI line 0 interrupt (priority 2)
+    NVIC_EnableIRQ(EXTI0_IRQn); // Enable the EXTI0 interrupt in the NVIC
+}
+
 //check which buttons are pressed
 bool check_pressed(EE14Lib_Pin pin) {
     GPIO_TypeDef* port = g_GPIO_port[pin];
@@ -65,6 +89,30 @@ void note_name(EE14Lib_Pin pin) {
     else if (pin == D10) write_lcd('E', 1);
     else if (pin == D11) write_lcd('D', 1);
     else if (pin == D12) write_lcd('C', 1);
+    // else if (pin == D3) {
+    //     write_lcd('F', 1);
+    //     write_lcd('F', 1);
+    //     write_lcd('C', 1);
+    //     write_lcd('C', 1);
+    //     write_lcd('D', 1);
+    //     write_lcd('D', 1);
+    //     write_lcd('C', 1);
+
+    //     write_lcd('F', 1);
+    //     write_lcd('F', 1);
+    //     write_lcd('C', 1);
+    //     write_lcd('C', 1);
+    //     write_lcd('D', 1);
+    //     write_lcd('D', 1);
+    //     write_lcd('C', 1);
+
+    //     write_lcd('C', 1);
+    //     write_lcd('C', 1);
+    //     write_lcd('D', 1);
+    //     write_lcd('E', 1);
+    //     write_lcd('F', 1);
+    //     write_lcd('F', 1);
+    // }
 }
 
 void run(EE14Lib_Pin pin) {
@@ -90,10 +138,9 @@ void run(EE14Lib_Pin pin) {
     }
     
     freq_DAC = 0;
+    fade_num = 4096;
     TIM7_Init(freq_DAC);
 }
-
-
 
 //play when button is pressed
 // void play(int *notes, int size_array) {
@@ -141,6 +188,9 @@ void setup() {
 
     gpio_config_mode(b[7], INPUT); //button 7   //D12 //PB4
     gpio_config_pullup(b[7], PULL_UP);
+
+    gpio_config_mode(b[8], INPUT); //button 7   //D12 //PB4
+    gpio_config_pullup(b[8], PULL_UP);
 }
 
 // display the notes on LCD
@@ -152,14 +202,6 @@ void setup() {
 //     }
 // }
 
-// uint16_t lookup_sine(int x, int *sine_table) {
-//     //x is output in degrees
-//     x = fmod(x, 360); //x might be Larger than 360 
-//     if (x < 90) return sine_table[x]; 
-//     if (x < 180) return sine_table[180-x]; 
-//     if (x < 270) return 4096 - sine_table[x-180]; 
-//     return 4096 - sine_table[360-x]; 
-// }
 
 // print starting message to the LCD
 void print_start(void) {
@@ -184,25 +226,35 @@ void print_start(void) {
     write_lcd(0x01, 0);
 }
 
-volatile int i = 0;
-// float mult = 1.0f;
-
 void TIM7_IRQHandler(void) {
     int output;
     if (TIM7->SR & TIM_SR_UIF) {           // Check update interrupt flag
         TIM7->SR &= ~TIM_SR_UIF;           // Clear interrupt flag
 
-        // float sine_wave = sine[i] * mult;
-        // output = sine_wave;
-        output = sine[i];                 // Get next sample from sine table
-    
+        if(mode == 0) {
+            output = (sine2[i] * fade_num) >> 12;
+        } else {
+            output = (sine[i] * fade_num) >> 12;
+        }
+        
         DAC->DHR12R2 = output;             // Load output to DAC channel 2
         DAC->SWTRIGR |= DAC_SWTRIGR_SWTRIG2;  // Trigger DAC conversion
         
         i++;                                 // Advance to next sample
-        if (i >= 360)   i = 0;               // Wrap around when end is reached
+        if (i >= 90 && mode == 0) {
+            i = 0;
+            if(fade_num > 0) {
+                fade_num -= 16;
+            }
+        } else if (i >= 360 && mode == 1) {
+            i = 0;
+            if(fade_num > 0) {
+                fade_num -= 16;
+            }
+        }
     }
-}
+}  
+
 
 unsigned int freq_select(EE14Lib_Pin note) {
     unsigned int freq = 0;
@@ -217,9 +269,16 @@ unsigned int freq_select(EE14Lib_Pin note) {
     return freq;
 }
 
+// void modify_mode(EE14Lib_Pin mode_button) {
+//     if (check_pressed(mode_button)) {
+//         mode = !mode;
+//     }
+// }
+
 int main() {
     host_serial_init();
     SysTick_initialize();
+    button1_config();
     DAC_Channel2_Init(); //initialize pin A4 --> PA5
     setup(); //config button pins
     enable_lcd(); //config lcd
@@ -229,5 +288,23 @@ int main() {
             run(b[i]);
         }
     }
+
+    // int i; 
+    // signed int sine_table[180]; 
+    // float sf; 
+    // for (i = 0; i < 360; i++){ 
+    //     sf = sin(M_PI * i / 180); 
+    //     sine_table[i] = (1 + sf) * 2048; 
+    //     if(sine_table[i] == 0x1000) 
+    //         sine_table[i] = 0xFFF;
+    //     } 
+    // int step = 2;
+    // for (i = 0; i < 360; i += 5*step){ 
+    //     printf("0x%03x,0x%03x,0x%03x,0x%03x,0x%03x,\n", sine_table[i+0*step], 
+    //     sine_table[i+1*step], sine_table[i+2*step], sine_table[i+3*step], sine_table[i+4*step]); 
+    // } 
+    // return 0; 
 }
+
+
 

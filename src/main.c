@@ -19,6 +19,7 @@ const int NUM_NOTES = 9;
 const EE14Lib_Pin b[] = { D3, D2, D5, D6, D9, D10, D11, D12, A0}; //array of pins
                             // B   A   G   F   E    D    C
 const EE14Lib_Pin sp = A4;
+// const char game[] = {};
 
 // Mapping of Nucleo pin number to GPIO port
 static GPIO_TypeDef * g_GPIO_port[D13+1] = {
@@ -42,11 +43,11 @@ static uint8_t g_GPIO_pin[D13+1] = {
     4,3         // D12=PB4,D13=PB3.
 };
 
-//for the print functions
-int _write(int file, char *data, int len){
-    serial_write(USART2, data, len);
-    return len;
-}
+// //for the print functions
+// int _write(int file, char *data, int len){
+//     serial_write(USART2, data, len);
+//     return len;
+// }
 
 //button mode
 void EXTI0_IRQHandler (void) {
@@ -69,17 +70,6 @@ void button1_config(void) { //A0  //PA0
     NVIC_EnableIRQ(EXTI0_IRQn); // Enable the EXTI0 interrupt in the NVIC
 }
 
-//check which buttons are pressed
-bool check_pressed(EE14Lib_Pin pin) {
-    GPIO_TypeDef* port = g_GPIO_port[pin];
-    uint8_t pin_offset = g_GPIO_pin[pin];
-    
-    if (!(port->IDR & (0x1UL << pin_offset))) { //if pressed
-        return true;
-    }
-    return false;
-}
-
 //print the names of the notes
 void note_name(EE14Lib_Pin pin) {
     if      (pin == D2)  write_lcd('B', 1);
@@ -89,30 +79,61 @@ void note_name(EE14Lib_Pin pin) {
     else if (pin == D10) write_lcd('E', 1);
     else if (pin == D11) write_lcd('D', 1);
     else if (pin == D12) write_lcd('C', 1);
-    // else if (pin == D3) {
-    //     write_lcd('F', 1);
-    //     write_lcd('F', 1);
-    //     write_lcd('C', 1);
-    //     write_lcd('C', 1);
-    //     write_lcd('D', 1);
-    //     write_lcd('D', 1);
-    //     write_lcd('C', 1);
+}
 
-    //     write_lcd('F', 1);
-    //     write_lcd('F', 1);
-    //     write_lcd('C', 1);
-    //     write_lcd('C', 1);
-    //     write_lcd('D', 1);
-    //     write_lcd('D', 1);
-    //     write_lcd('C', 1);
+void game1() {
+    write_lcd(0x01, 0);
+    write_lcd('F', 1);
+    write_lcd(' ', 1);
+    write_lcd('F', 1);
+    write_lcd(' ', 1);
+    write_lcd('C', 1);
+    write_lcd(' ', 1);
+    write_lcd('C', 1);
+    write_lcd(' ', 1);
+    write_lcd('D', 1);
+    write_lcd(' ', 1);
+    write_lcd('D', 1);
+    write_lcd(' ', 1);
+    write_lcd('C', 1);
+    write_lcd(' ', 1);
 
-    //     write_lcd('C', 1);
-    //     write_lcd('C', 1);
-    //     write_lcd('D', 1);
-    //     write_lcd('E', 1);
-    //     write_lcd('F', 1);
-    //     write_lcd('F', 1);
-    // }
+    write_lcd('A', 1);
+    write_lcd(' ', 1);
+    write_lcd('A', 1);
+    write_lcd(' ', 1);
+    write_lcd('G', 1);
+    write_lcd(' ', 1);
+    write_lcd('G', 1);
+    write_lcd(' ', 1);
+    write_lcd('F', 1);
+    
+    write_lcd('D', 1);
+    write_lcd(' ', 1);
+    write_lcd('C', 1);
+    write_lcd(' ', 1);
+
+    write_lcd('C', 1);
+    write_lcd(' ', 1);
+    write_lcd('C', 1);
+    write_lcd(' ', 1);
+    write_lcd('D', 1);
+    write_lcd(' ', 1);
+    write_lcd('E', 1);
+    write_lcd(' ', 1);
+    write_lcd('F', 1);
+    write_lcd(' ', 1);
+    write_lcd('F', 1);
+}
+
+bool check_pressed(EE14Lib_Pin pin) {
+    GPIO_TypeDef* port = g_GPIO_port[pin];
+    uint8_t pin_offset = g_GPIO_pin[pin];
+    
+    if (!(port->IDR & (0x1UL << pin_offset))) {
+        return true;
+    } 
+    return false;
 }
 
 void run(EE14Lib_Pin pin) {
@@ -128,7 +149,6 @@ void run(EE14Lib_Pin pin) {
         }
         if (printed == false) {
             note_name(pin);
-            for (volatile int i = 0; i < 1000; i++);
             printed = true;
         }
     }
@@ -141,27 +161,6 @@ void run(EE14Lib_Pin pin) {
     fade_num = 4096;
     TIM7_Init(freq_DAC);
 }
-
-//play when button is pressed
-// void play(int *notes, int size_array) {
-//     EE14Lib_Pin pin;
-//     for (int i = 0; i < NUM_NOTES; i++) {
-//         if (notes[i] == 1) { //if pressed
-//             pin = b[i]; //set pin 
-//         }
-//     }
-//     GPIO_TypeDef* port = g_GPIO_port[pin]; 
-//     uint8_t pin_offset = g_GPIO_pin[pin];
-
-//     for (int i = 0; i < size_array; i++) { //loop through the sound sample
-//         if(!(port->IDR & 0x1UL << pin_offset)) { //check if button is pressed
-//             // send information to DAC
-
-//         } else { //button released
-//             i = size_array - 1;
-//         }    
-//     }
-// }
 
 //config pins used for the buttons
 void setup() {
@@ -192,16 +191,6 @@ void setup() {
     gpio_config_mode(b[8], INPUT); //button 7   //D12 //PB4
     gpio_config_pullup(b[8], PULL_UP);
 }
-
-// display the notes on LCD
-// void display_note(int *notes) {
-//     for (int i = 0; i < NUM_NOTES; i++) {
-//         if (notes[i] == 1) { //if pressed
-//             note_name(i);
-//         }
-//     }
-// }
-
 
 // print starting message to the LCD
 void print_start(void) {
@@ -244,7 +233,7 @@ void TIM7_IRQHandler(void) {
         if (i >= 90 && mode == 0) {
             i = 0;
             if(fade_num > 0) {
-                fade_num -= 16;
+                fade_num -= 8;
             }
         } else if (i >= 360 && mode == 1) {
             i = 0;
@@ -254,7 +243,6 @@ void TIM7_IRQHandler(void) {
         }
     }
 }  
-
 
 unsigned int freq_select(EE14Lib_Pin note) {
     unsigned int freq = 0;
@@ -269,12 +257,6 @@ unsigned int freq_select(EE14Lib_Pin note) {
     return freq;
 }
 
-// void modify_mode(EE14Lib_Pin mode_button) {
-//     if (check_pressed(mode_button)) {
-//         mode = !mode;
-//     }
-// }
-
 int main() {
     host_serial_init();
     SysTick_initialize();
@@ -288,22 +270,6 @@ int main() {
             run(b[i]);
         }
     }
-
-    // int i; 
-    // signed int sine_table[180]; 
-    // float sf; 
-    // for (i = 0; i < 360; i++){ 
-    //     sf = sin(M_PI * i / 180); 
-    //     sine_table[i] = (1 + sf) * 2048; 
-    //     if(sine_table[i] == 0x1000) 
-    //         sine_table[i] = 0xFFF;
-    //     } 
-    // int step = 2;
-    // for (i = 0; i < 360; i += 5*step){ 
-    //     printf("0x%03x,0x%03x,0x%03x,0x%03x,0x%03x,\n", sine_table[i+0*step], 
-    //     sine_table[i+1*step], sine_table[i+2*step], sine_table[i+3*step], sine_table[i+4*step]); 
-    // } 
-    // return 0; 
 }
 
 

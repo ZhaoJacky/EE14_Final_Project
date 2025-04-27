@@ -56,7 +56,7 @@ bool check_pressed(EE14Lib_Pin pin) {
     return false;
 }
 
-//define the name of the notes
+//print the names of the notes
 void note_name(EE14Lib_Pin pin) {
     if      (pin == D2)  write_lcd('B', 1);
     else if (pin == D5)  write_lcd('A', 1);
@@ -185,20 +185,20 @@ void print_start(void) {
 }
 
 volatile int i = 0;
-float mult = 1.0f;
+// float mult = 1.0f;
 
 void TIM7_IRQHandler(void) {
     int output;
     if (TIM7->SR & TIM_SR_UIF) {           // Check update interrupt flag
         TIM7->SR &= ~TIM_SR_UIF;           // Clear interrupt flag
 
-        float sine_wave = sine[i] * mult;
-        output = sine_wave;
-        // output = sine[i];                 // Get next sample from sine table
+        // float sine_wave = sine[i] * mult;
+        // output = sine_wave;
+        output = sine[i];                 // Get next sample from sine table
     
         DAC->DHR12R2 = output;             // Load output to DAC channel 2
         DAC->SWTRIGR |= DAC_SWTRIGR_SWTRIG2;  // Trigger DAC conversion
-        mu
+        
         i++;                                 // Advance to next sample
         if (i >= 360)   i = 0;               // Wrap around when end is reached
     }
@@ -224,7 +224,6 @@ int main() {
     setup(); //config button pins
     enable_lcd(); //config lcd
     print_start(); //print starting message
-    
     while(1) {
         for (int i = 0; i < NUM_NOTES; i++) {
             run(b[i]);

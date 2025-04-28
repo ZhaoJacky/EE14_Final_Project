@@ -10,9 +10,8 @@ void TIM7_Init(unsigned int freq_hz)
     TIM7->CR1 &= ~TIM_CR1_CEN;
 
     // Calculate prescaler and ARR
-    unsigned int clk = 4000000; // Timer clock (4 MHz)
-    TIM7->PSC = 0;              // No prescaler for now
-    TIM7->ARR = (clk / freq_hz) - 1;
+    TIM7->PSC = 0;             
+    TIM7->ARR = (4000000 / freq_hz) - 1;
 
     // Clear counter
     TIM7->CNT = 0;

@@ -7,19 +7,21 @@ EE14 Final Project: keyboard
 #include "lcd.h"
 #include "dac.h"
 #include <stdio.h>
-#include <string.h>
 #define _USE_MATH_DEFINES
 #include <math.h>
 #include "sine_table.h"
 
 volatile int i = 0;
-bool mode = 0; // 0 = High Notes 1 = Low Notes
+bool mode = 0; // 0 = High Notes and 1 = Low Notes
+bool song_mode = 0; // 0 = OFF and 1 = ON
 int fade_num = 4096;
 const int NUM_NOTES = 9;
-const EE14Lib_Pin b[] = { D3, D2, D5, D6, D9, D10, D11, D12, A0}; //array of pins
-                            // B   A   G   F   E    D    C
+const EE14Lib_Pin b[] = { A1, D2, D5, D6, D9, D10, D11, D12, A0}; //array of pins
+                        
 const EE14Lib_Pin sp = A4;
-// const char game[] = {};
+bool song_printed = false;
+volatile unsigned int song_count = 0; //A1  //PA1 
+// // 0 = OFF; 1 = Twinkle; 2 = Belong; 3 = Rick Roll
 
 // Mapping of Nucleo pin number to GPIO port
 static GPIO_TypeDef * g_GPIO_port[D13+1] = {
@@ -44,16 +46,30 @@ static uint8_t g_GPIO_pin[D13+1] = {
 };
 
 // //for the print functions
-// int _write(int file, char *data, int len){
-//     serial_write(USART2, data, len);
-//     return len;
-// }
+int _write(int file, char *data, int len){
+    serial_write(USART2, data, len);
+    return len;
+}
 
 //button mode
 void EXTI0_IRQHandler (void) {
     if (EXTI->PR1 & EXTI_PR1_PIF0) { //A0  //PA0
-        mode = !mode; 
-        EXTI->PR1 = EXTI_PR1_PIF0;   //   clear bits(by writing a 1)
+        mode = !mode;
+        EXTI->PR1 |= EXTI_PR1_PIF0;   //   clear bits(by writing a 1)
+    }
+}
+
+//change modes (song mode: on/off, change songs)
+void EXTI1_IRQHandler (void) {
+    if (EXTI->PR1 & EXTI_PR1_PIF1) { //A1  //PA1
+        
+        if (song_count == 0 || song_count == 3) {
+           song_mode = !song_mode; 
+        }
+        song_count = (song_count + 1) % 4;
+        song_printed = false;
+        
+        EXTI->PR1 |= EXTI_PR1_PIF1;   //   clear bits(by writing a 1)
     }
 }
 
@@ -70,6 +86,19 @@ void button1_config(void) { //A0  //PA0
     NVIC_EnableIRQ(EXTI0_IRQn); // Enable the EXTI0 interrupt in the NVIC
 }
 
+void button3_config(void) { //A1  //PA1
+    RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN;
+
+    SYSCFG->EXTICR[0] &= ~SYSCFG_EXTICR1_EXTI1; // Clear any existing mapping for EXTI0
+
+    EXTI->FTSR1 |= EXTI_FTSR1_FT1;
+
+    EXTI->IMR1 |= EXTI_IMR1_IM1;
+
+    NVIC_SetPriority(EXTI1_IRQn, 2);  // Set the priority of EXTI line 0 interrupt (priority 2)
+    NVIC_EnableIRQ(EXTI1_IRQn); // Enable the EXTI0 interrupt in the NVIC
+}
+
 //print the names of the notes
 void note_name(EE14Lib_Pin pin) {
     if      (pin == D2)  write_lcd('B', 1);
@@ -79,51 +108,6 @@ void note_name(EE14Lib_Pin pin) {
     else if (pin == D10) write_lcd('E', 1);
     else if (pin == D11) write_lcd('D', 1);
     else if (pin == D12) write_lcd('C', 1);
-}
-
-void game1() {
-    write_lcd(0x01, 0);
-    write_lcd('F', 1);
-    write_lcd(' ', 1);
-    write_lcd('F', 1);
-    write_lcd(' ', 1);
-    write_lcd('C', 1);
-    write_lcd(' ', 1);
-    write_lcd('C', 1);
-    write_lcd(' ', 1);
-    write_lcd('D', 1);
-    write_lcd(' ', 1);
-    write_lcd('D', 1);
-    write_lcd(' ', 1);
-    write_lcd('C', 1);
-    write_lcd(' ', 1);
-
-    write_lcd('A', 1);
-    write_lcd(' ', 1);
-    write_lcd('A', 1);
-    write_lcd(' ', 1);
-    write_lcd('G', 1);
-    write_lcd(' ', 1);
-    write_lcd('G', 1);
-    write_lcd(' ', 1);
-    write_lcd('F', 1);
-    
-    write_lcd('D', 1);
-    write_lcd(' ', 1);
-    write_lcd('C', 1);
-    write_lcd(' ', 1);
-
-    write_lcd('C', 1);
-    write_lcd(' ', 1);
-    write_lcd('C', 1);
-    write_lcd(' ', 1);
-    write_lcd('D', 1);
-    write_lcd(' ', 1);
-    write_lcd('E', 1);
-    write_lcd(' ', 1);
-    write_lcd('F', 1);
-    write_lcd(' ', 1);
-    write_lcd('F', 1);
 }
 
 bool check_pressed(EE14Lib_Pin pin) {
@@ -147,12 +131,12 @@ void run(EE14Lib_Pin pin) {
             freq_DAC = freq_select(pin);
             TIM7_Init(freq_DAC);  
         }
-        if (printed == false) {
+        if (printed == false && !song_mode) {
             note_name(pin);
             printed = true;
         }
     }
-    if(printed == true) {
+    if(printed == true && !song_mode) {
         write_lcd(0x01, 0);
         printed = false;
     }
@@ -164,55 +148,32 @@ void run(EE14Lib_Pin pin) {
 
 //config pins used for the buttons
 void setup() {
-    gpio_config_mode(b[0], INPUT); //button 0   //A0 //PA0
+    gpio_config_mode(b[0], INPUT); 
     gpio_config_pullup(b[0], PULL_UP);
 
-    gpio_config_mode(b[1], INPUT); //button 1   //D2 //PA12
+    gpio_config_mode(b[1], INPUT); 
     gpio_config_pullup(b[1], PULL_UP);
 
-    gpio_config_mode(b[2], INPUT); //button 2   //A1 //PA1
+    gpio_config_mode(b[2], INPUT); 
     gpio_config_pullup(b[2], PULL_UP);
 
-    gpio_config_mode(b[3], INPUT); //button 3   //D5 //PB6
+    gpio_config_mode(b[3], INPUT); 
     gpio_config_pullup(b[3], PULL_UP);
 
-    gpio_config_mode(b[4], INPUT); //button 4   //D9 //PA8
+    gpio_config_mode(b[4], INPUT); 
     gpio_config_pullup(b[4], PULL_UP);
 
-    gpio_config_mode(b[5], INPUT); //button 5   //D10 //PA11
+    gpio_config_mode(b[5], INPUT); 
     gpio_config_pullup(b[5], PULL_UP);
 
-    gpio_config_mode(b[6], INPUT); //button 6   //D11 //PB5
+    gpio_config_mode(b[6], INPUT); 
     gpio_config_pullup(b[6], PULL_UP);
 
-    gpio_config_mode(b[7], INPUT); //button 7   //D12 //PB4
+    gpio_config_mode(b[7], INPUT); 
     gpio_config_pullup(b[7], PULL_UP);
 
-    gpio_config_mode(b[8], INPUT); //button 7   //D12 //PB4
+    gpio_config_mode(b[8], INPUT); 
     gpio_config_pullup(b[8], PULL_UP);
-}
-
-// print starting message to the LCD
-void print_start(void) {
-    write_lcd('h', 1);
-    write_lcd('e', 1);
-    write_lcd('l', 1);
-    write_lcd('l', 1);
-    write_lcd('o', 1);
-
-    write_lcd(' ', 1);
-
-    write_lcd('w', 1);
-    write_lcd('o', 1);
-    write_lcd('r', 1);
-    write_lcd('l', 1);
-    write_lcd('d', 1);
-
-    write_lcd('!', 1);
-
-    delay_ms(2000);
-
-    write_lcd(0x01, 0);
 }
 
 void TIM7_IRQHandler(void) {
@@ -220,8 +181,8 @@ void TIM7_IRQHandler(void) {
     if (TIM7->SR & TIM_SR_UIF) {           // Check update interrupt flag
         TIM7->SR &= ~TIM_SR_UIF;           // Clear interrupt flag
 
-        if(mode == 0) {
-            output = (sine2[i] * fade_num) >> 12;
+        if(mode == 0) { 
+            output = (sine2[i] * fade_num) >> 12; //higher octave
         } else {
             output = (sine[i] * fade_num) >> 12;
         }
@@ -230,42 +191,95 @@ void TIM7_IRQHandler(void) {
         DAC->SWTRIGR |= DAC_SWTRIGR_SWTRIG2;  // Trigger DAC conversion
         
         i++;                                 // Advance to next sample
-        if (i >= 90 && mode == 0) {
+        if (i >= 90 && mode == 0) { //0 = higher
             i = 0;
-            if(fade_num > 0) {
-                fade_num -= 8;
-            }
+            if(fade_num > 0) fade_num -= 8;
         } else if (i >= 360 && mode == 1) {
             i = 0;
-            if(fade_num > 0) {
-                fade_num -= 16;
-            }
+            if(fade_num > 0) fade_num -= 16;
         }
     }
 }  
 
 unsigned int freq_select(EE14Lib_Pin note) {
     unsigned int freq = 0;
-    if      (note == D12) freq = 23600;
-    else if (note == D11) freq = 26500;
-    else if (note == D10) freq = 30000;
-    else if (note == D9)  freq = 31500;
-    else if (note == D6)  freq = 35700;
-    else if (note == D5)  freq = 40000;
-    else if (note == D2)  freq = 44900;
+    if      (note == D12) freq = 23600; //C
+    else if (note == D11) freq = 26500; //D
+    else if (note == D10) freq = 30000; //E
+    else if (note == D9)  freq = 31500; //F
+    else if (note == D6)  freq = 35700; //G
+    else if (note == D5)  freq = 40000; //A
+    else if (note == D2)  freq = 44900; //B
 
     return freq;
+}
+
+void Twinkle() {
+    write_lcd(0x01, 0); //clear LCD
+    delay_ms(100);
+
+    print_string_lcd("Guess the song:");
+    write_lcd(0xC0, 0); //new line
+    delay_ms(50);
+    print_string_lcd("CCGGAAG FFEEDDC");
+}
+
+void Belong() {
+    write_lcd(0x01, 0); //clear LCD
+    delay_ms(100);
+
+    print_string_lcd("Guess the song:");
+    delay_ms(2000);
+    write_lcd(0x01, 0); //clear LCD
+    delay_ms(500);
+    print_string_lcd("GEEDCCGEDED");
+    write_lcd(0xC0, 0); //new line
+    delay_ms(50);
+    print_string_lcd("DGGEEDGEDED");
+}
+
+void Rick_roll(){
+    write_lcd(0x01, 0); //clear LCD
+    delay_ms(100);
+
+    print_string_lcd("Guess the song:");
+    write_lcd(0xC0, 0); //new line
+    delay_ms(50);
+    print_string_lcd("CDFDAAG CDFDGGF");
 }
 
 int main() {
     host_serial_init();
     SysTick_initialize();
     button1_config();
+    button3_config();
     DAC_Channel2_Init(); //initialize pin A4 --> PA5
     setup(); //config button pins
     enable_lcd(); //config lcd
-    print_start(); //print starting message
+    
+    //print starting message
+    print_string_lcd("Welcome to");
+    write_lcd(0xC0, 0);
+    delay_ms(50);
+    print_string_lcd("Electric Piano!");
+    write_lcd(0xC0, 0);
+    delay_ms(50);
+
+    delay_ms(2000);
+    write_lcd(0x01, 0);
+    delay_ms(500);
     while(1) {
+        if (song_mode && !song_printed) {
+            if (song_count == 1) { //twinkle twinkle
+                Twinkle();
+            } else if (song_count == 2) {
+                Belong();
+            } else if (song_count == 3) {
+                Rick_roll();
+            }
+            song_printed = true;
+        }
+        
         for (int i = 0; i < NUM_NOTES; i++) {
             run(b[i]);
         }

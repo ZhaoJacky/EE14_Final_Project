@@ -3,6 +3,7 @@
 
 // Includes the header file.
 #include "lcd.h"
+#include <string.h>
 
 void SysTick_initialize(void) {
     SysTick->CTRL = 0; //disables systick counter
@@ -123,4 +124,11 @@ uint8_t construct_lcd_nibble(uint8_t nibble, int enable, int data) {
     i2c_byte |= (1 << 3); // Backlight LED
     
     return i2c_byte;
+}
+
+void print_string_lcd(char *c) {
+    int length = strlen(c);
+    for (int i = 0; i < length; i++){
+        write_lcd(c[i], 1);
+    }
 }

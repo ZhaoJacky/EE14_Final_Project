@@ -11,3 +11,4 @@ void delay_ms(int s);
 void write_lcd(uint8_t byte, int data);
 uint8_t construct_lcd_nibble(uint8_t nibble, int enable, int data);
 void enable_lcd();
+void print_string_lcd(char *c);
